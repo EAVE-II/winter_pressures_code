@@ -1,0 +1,128 @@
+---
+title: "Cox Model Results"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE)
+library(knitr)
+library(kableExtra)
+```
+
+## Results from Cox Models for Hospital Admissions
+### All Respiratory Admissions
+```{r}
+z_mod = model_all_coefs %>% select(coef_name, n, HR, LCL, UCL) %>%
+  mutate(HR = round(HR, 2),
+         LCL = round(LCL, 2),
+         UCL = round(UCL, 2)) %>%
+  mutate(HR = sprintf("%.2f (%.2f, %.2f)", HR, LCL, UCL)) %>%
+  select(coef_name, n, HR)
+
+kableExtra::kbl(z_mod,
+                         caption = "Model coefficients", digits=c(NA, 1, NA),
+                         col.names = c("Coefficient", "n", "HR"),
+                         format = "pipe") %>%
+  kableExtra::kable_classic(full_width = F, html_font = "Cambria", position = "left") %>%
+  kableExtra::column_spec(1:6, width="5em") 
+```
+
+## All respiratory admissions
+### Adults
+```{r}
+z_model_adults_all = model_adults_coefs %>% select(coef_name, n, HR, LCL, UCL) %>%
+  select(coef_name, n, HR, LCL, UCL) %>%
+  mutate(HR = round(HR, 2),
+         LCL = round(LCL, 2),
+         UCL = round(UCL, 2),
+         n_all = n) %>%
+  mutate(HR_all = sprintf("%.2f (%.2f, %.2f)", HR, LCL, UCL)) %>%
+  select(coef_name, n_all, HR_all)
+
+z_model_adults_flu = model_flu_adults_coefs %>% select(coef_name, n, HR, LCL, UCL) %>%
+  select(coef_name, n, HR, LCL, UCL) %>%
+  mutate(HR = round(HR, 2),
+         LCL = round(LCL, 2),
+         UCL = round(UCL, 2),
+         n_flu = n) %>%
+  mutate(HR_flu = sprintf("%.2f (%.2f, %.2f)", HR, LCL, UCL)) %>%
+  select(coef_name, n_flu, HR_flu)
+
+z_model_adults_covid = model_covid_adults_coefs %>% select(coef_name, n, HR, LCL, UCL) %>%
+  select(coef_name, n, HR, LCL, UCL) %>%
+  mutate(HR = round(HR, 2),
+         LCL = round(LCL, 2),
+         UCL = round(UCL, 2),
+         n_covid = n) %>%
+  mutate(HR_covid = sprintf("%.2f (%.2f, %.2f)", HR, LCL, UCL)) %>%
+  select(coef_name, n_covid, HR_covid)
+
+z_model_adults = z_model_adults_all %>% 
+  left_join(z_model_adults_flu, by="coef_name") %>%
+  left_join(z_model_adults_covid, by="coef_name") 
+
+kableExtra::kbl(z_model_adults,
+                         caption = "Model coefficients", digits=c(NA, 1, NA,1,NA, 1, NA),
+                         col.names = c("Coefficient", "n All", "HR All", "n Flu", "HR Flu", "n COVID-19", "HR COVID-19"),
+                         format = "pipe") %>%
+  kableExtra::kable_classic(full_width = F, html_font = "Cambria", position = "left") %>%
+  kableExtra::column_spec(1:9, width="5em") 
+```
+
+### CYP
+```{r}
+z_model_cyp_all = model_cyp_coefs %>% select(coef_name, n, HR, LCL, UCL) %>%
+  select(coef_name, n, HR, LCL, UCL) %>%
+  mutate(HR = round(HR, 2),
+         LCL = round(LCL, 2),
+         UCL = round(UCL, 2),
+         n_all = n) %>%
+  mutate(HR_all = sprintf("%.2f (%.2f, %.2f)", HR, LCL, UCL)) %>%
+  select(coef_name, n_all, HR_all)
+
+kableExtra::kbl(z_model_cyp_all,
+                         caption = "Model coefficients", digits=c(NA, 1, NA),
+                         col.names = c("Coefficient", "n All", "HR All"),
+                         format = "pipe") %>%
+  kableExtra::kable_classic(full_width = F, html_font = "Cambria", position = "left") %>%
+  kableExtra::column_spec(1:3, width="5em") 
+```
+
+## Pathogen specific models for vaccinations
+### Flu
+```{r}
+z_model_adults_flu = model_flu_adults_coefs %>% select(coef_name, n, HR, LCL, UCL) %>%
+  select(coef_name, n, HR, LCL, UCL) %>%
+  mutate(HR = round(HR, 2),
+         LCL = round(LCL, 2),
+         UCL = round(UCL, 2),
+         n_flu = n) %>%
+  mutate(HR_flu = sprintf("%.2f (%.2f, %.2f)", HR, LCL, UCL)) %>%
+  select(coef_name, n_flu, HR_flu)
+
+kableExtra::kbl(z_model_adults_flu,
+                         caption = "Model coefficients", digits=c(NA, 1, NA),
+                         col.names = c("Coefficient", "n Flu", "HR n Flu"),
+                         format = "pipe") %>%
+  kableExtra::kable_classic(full_width = F, html_font = "Cambria", position = "left") %>%
+  kableExtra::column_spec(1:3, width="5em") 
+```
+
+### COVID-19
+```{r}
+z_model_adults_covid = model_covid_adults_coefs %>% select(coef_name, n, HR, LCL, UCL) %>%
+  select(coef_name, n, HR, LCL, UCL) %>%
+  mutate(HR = round(HR, 2),
+         LCL = round(LCL, 2),
+         UCL = round(UCL, 2),
+         n_covid = n) %>%
+  mutate(HR_covid = sprintf("%.2f (%.2f, %.2f)", HR, LCL, UCL)) %>%
+  select(coef_name, n_covid, HR_covid)
+
+kableExtra::kbl(z_model_adults_covid,
+                         caption = "Model coefficients", digits=c(NA, 1, NA),
+                         col.names = c("Coefficient", "n COVID-19", "HR COVID-19"),
+                         format = "pipe") %>%
+  kableExtra::kable_classic(full_width = F, html_font = "Cambria", position = "left") %>%
+  kableExtra::column_spec(1:3, width="5em") 
+```

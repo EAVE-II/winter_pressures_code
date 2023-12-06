@@ -1,0 +1,59 @@
+---
+title: "Display Cox Model Input"
+output: html_document
+date: "2023-05-17"
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+
+descriptors = c ("ageYear", "n_risk_gps", "Sex", "age_gp", "covid_vs", "flu_vs", "urban_rural_classification", "simd", "icu_admit_age", "death_28", "hosp_los_gp", "num_prev_admission_gp", "ethnic_gp", "health_board")
+descriptors_labels = c ("Age", "Number of Risk Groups", "Sex", "Age Groups", "Covid Vaccination Status",
+                        "Flu Vaccination Status", "Urban/Rural Classification", "SIMD", "ICU Admittance", "Death", 
+                        "Length of Stay", "Number of previous admissions", "Ethnic Group", "Health Board")
+
+var_labels = setNames(as.list(descriptors_labels), descriptors)
+```
+
+## Case/Control Split
+```{r}
+print(table(df_all$event))
+```
+
+## Cox Model Input Description
+```{r}
+z_df = df_all %>% mutate(type = if_else(event == 1, "Case", "Selected Control"))
+z_all_controls = df_controls %>% mutate(type = "Population Control",
+                                        time = 0)
+
+z_df = z_df %>% rbind(z_all_controls)
+
+z_df$type = as.factor(z_df$type)
+
+z_df = z_df %>%
+  mutate(simd = factor(simd)) %>%
+  mutate(health_board = as.factor(health_board)) %>%
+  mutate(ethnic_gp = as.factor(ethnic_gp)) %>%
+  mutate(death_28 = as.factor(death_28))
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "type", descriptors))
+```
+
+## All controls
+```{r}
+print(sum(df_controls$eave_weight))
+```
+```{r}
+z_df = df_controls %>%
+  mutate(value = TRUE) %>%
+  mutate(simd = factor(simd)) %>%
+  mutate(health_board = as.factor(health_board)) %>%
+  mutate(ethnic_gp = as.factor(ethnic_gp)) %>%
+  mutate(death_28 = as.factor(death_28))
+
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```

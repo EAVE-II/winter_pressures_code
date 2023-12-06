@@ -1,0 +1,165 @@
+---
+title: "Display Emergency Hospitalisations"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE)
+
+descriptors = c ("ageYear", "n_risk_gps", "Sex", "age_gp", "covid_vs", "flu_vs", "urban_rural_classification", "simd2020_sc_quintile", "icu_admit_age", "death_28", "hosp_los_gp", "num_prev_admission_gp", "ethnic_gp", "health_board")
+descriptors_labels = c ("Age", "Number of Risk Groups", "Sex", "Age Groups", "Covid Vaccination Status",
+                        "Flu Vaccination Status", "Urban/Rural Classification", "SIMD", "ICU Admittance", "Death", 
+                        "Length of Stay", "Number of previous admissions", "Ethnic Group", "Health Board")
+
+var_labels = setNames(as.list(descriptors_labels), descriptors)
+descriptors_death = c("ageYear", "n_risk_gps", "Sex", "age_gp", "covid_vs", "flu_vs", "urban_rural_classification", "simd2020_sc_quintile", "num_prev_admission_gp", "ethnic_gp", "health_board")
+descriptors_death_labels = c ("Age", "Number of Risk Groups", "Sex", "Age Groups", "Covid Vaccination Status",
+                        "Flu Vaccination Status", "Urban/Rural Classification", "SIMD",  
+                        "Number of previous admissions", "Ethnic Group", "Health Board")
+
+var_labels_death = setNames(as.list(descriptors_death_labels), descriptors_death)
+
+```
+
+## Number of Emergency Hospitalisations 
+```{r}
+num_hosp = nrow(emergency_hosp_cohort)
+print(num_hosp)
+```
+
+
+## Hospitalisation - emergency admission description
+```{r}
+z_df = emergency_hosp_cohort %>% mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit)) %>%
+  mutate(health_board = as.factor(health_board)) %>%
+  mutate(ethnic_gp = as.factor(ethnic_gp)) %>%
+  mutate(death_28 = as.factor(death_28))
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```
+
+## Number of CIST admissions
+```{r}
+z_df = emergency_hosp_cohort %>% filter(acute_resp_admission == 1 | acute_resp_secondary == 1 |
+                                        acute_trauma_admission == 1 | acute_trauma_secondary == 1 |
+                                        acute_cancer_admission == 1 | acute_cancer_secondary == 1 |
+                                        acute_cardiac_admission == 1 | acute_cardiac_secondary == 1)
+
+print(nrow(z_df))
+```
+
+## Hospitalisation - Trauma emergency admission description
+```{r}
+z_df = emergency_hosp_cohort %>% filter(acute_trauma_admission == 1 | acute_trauma_secondary == 1) %>%
+  mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit)) %>%
+  mutate(health_board = as.factor(health_board)) %>%
+  mutate(ethnic_gp = as.factor(ethnic_gp)) %>%
+  mutate(death_28 = as.factor(death_28))
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+print(nrow(z_df))
+```
+
+```{r}
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```
+
+## Hospitalisation - Cardiac emergency admission description
+```{r}
+z_df = emergency_hosp_cohort %>% filter(acute_cardiac_admission == 1 | acute_cardiac_secondary == 1) %>%
+  mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit)) %>%
+  mutate(health_board = as.factor(health_board)) %>%
+  mutate(ethnic_gp = as.factor(ethnic_gp)) %>%
+  mutate(death_28 = as.factor(death_28))
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+print(nrow(z_df))
+```
+
+```{r}
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```
+
+## Hospitalisation - Cancer emergency admission description
+```{r}
+z_df = emergency_hosp_cohort %>% filter(acute_cancer_admission == 1 | acute_cancer_secondary == 1) %>%
+  mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit)) %>%
+  mutate(health_board = as.factor(health_board)) %>%
+  mutate(ethnic_gp = as.factor(ethnic_gp)) %>%
+  mutate(death_28 = as.factor(death_28))
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+print(nrow(z_df))
+```
+
+```{r}
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```
+
+# Hospital Length of stays
+```{r}
+g = ggplot(emergency_hosp_cohort, aes(hosp_los_gp)) + geom_bar()
+
+print(g)
+```
+
+# Weekly counts
+
+## All admissions
+```{r}
+z_count = emergency_hosp_cohort %>% 
+  select(EAVE_LINKNO, ADMISSION_DATE) %>% mutate(t = floor(difftime(ADMISSION_DATE, a_begin, units="weeks"))) %>%
+  count(t) %>% mutate(t = t + a_begin) 
+g = ggplot() + geom_line(z_count, mapping=aes(x=t, y=n)) + 
+  scale_x_date(breaks="1 month", date_labels="%b %Y") + ylab("Number of admissions") +
+  xlab("Month and Year") 
+
+print(g)
+```
+
+## Produce graphs
+```{r}
+z_resp = emergency_hosp_cohort %>% filter(acute_resp_admission == 1 | acute_resp_secondary == 1)
+
+z_trauma = emergency_hosp_cohort %>% filter(acute_trauma_admission == 1 | acute_trauma_secondary == 1)
+
+z_cancer = emergency_hosp_cohort %>% filter(acute_cancer_admission == 1 | acute_cancer_secondary == 1)
+
+z_cardiac = emergency_hosp_cohort %>% filter(acute_cardiac_admission == 1 | acute_cardiac_secondary == 1)
+
+z_resp_count = z_resp %>%
+  select(EAVE_LINKNO, ADMISSION_DATE) %>% mutate(t = floor(difftime(ADMISSION_DATE, a_begin, units="days"))) %>%
+  count(t) %>% mutate(t = t + a_begin) %>% mutate(type="Respiratory")
+
+z_trauma_count = z_trauma %>%
+  select(EAVE_LINKNO, ADMISSION_DATE) %>% mutate(t = floor(difftime(ADMISSION_DATE, a_begin, units="days"))) %>%
+  count(t) %>% mutate(t = t + a_begin)  %>% mutate(type="Trauma")
+
+z_cancer_count = z_cancer %>%
+  select(EAVE_LINKNO, ADMISSION_DATE) %>% mutate(t = floor(difftime(ADMISSION_DATE, a_begin, units="days"))) %>%
+  count(t) %>% mutate(t = t + a_begin) %>% mutate(type="Cancer")
+
+z_cardiac_count = z_cardiac %>%
+  select(EAVE_LINKNO, ADMISSION_DATE) %>% mutate(t = floor(difftime(ADMISSION_DATE, a_begin, units="days"))) %>%
+  count(t) %>% mutate(t = t + a_begin) %>% mutate(type="Cardiac")
+
+z_counts = z_resp_count %>% rbind(z_trauma_count) %>% rbind(z_cancer_count) %>% rbind(z_cardiac_count)
+  
+g = ggplot(z_counts, aes(x=t)) + geom_line(aes(y=n, color = type)) + 
+  scale_x_date(breaks="1 month", date_labels="%b %Y") + ylab("Number of admissions") +
+  xlab("Month and Year") 
+print(g)
+```

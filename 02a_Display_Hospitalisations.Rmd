@@ -1,0 +1,413 @@
+---
+title: "Display Emergency Hospitalisations"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(knitr)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, error=FALSE, message=FALSE)
+
+descriptors = c ("ageYear", "n_risk_gps", "Sex", "age_gp", "covid_vs", "flu_vs", "urban_rural_classification", "simd2020_sc_quintile", "icu_admit_age", "death_28", "hosp_los_gp", "num_prev_admission_gp", "ethnic_gp", "health_board")
+descriptors_labels = c ("Age", "Number of Risk Groups", "Sex", "Age Groups", "Covid Vaccination Status",
+                        "Flu Vaccination Status", "Urban/Rural Classification", "SIMD", "ICU Admittance", "Death", 
+                        "Length of Stay", "Number of previous admissions", "Ethnic Group", "Health Board")
+
+var_labels = setNames(as.list(descriptors_labels), descriptors)
+descriptors_death = c("ageYear", "n_risk_gps", "Sex", "age_gp", "covid_vs", "flu_vs", "urban_rural_classification", "simd2020_sc_quintile", "num_prev_admission_gp", "ethnic_gp", "health_board")
+descriptors_death_labels = c ("Age", "Number of Risk Groups", "Sex", "Age Groups", "Covid Vaccination Status",
+                        "Flu Vaccination Status", "Urban/Rural Classification", "SIMD",  
+                        "Number of previous admissions", "Ethnic Group", "Health Board")
+
+var_labels_death = setNames(as.list(descriptors_death_labels), descriptors_death)
+
+```
+
+## Number of Hospitalisations - respiratory emergency admission in any location
+```{r}
+resp_cohort = hosp_cohort %>% filter(acute_resp_admission == 1 | acute_resp_secondary == 1)# %>%
+  #arrange(EAVE_LINKNO, ADMISSION_DATE) %>% filter(!duplicated(EAVE_LINKNO))
+num_resp_hosp = nrow(resp_cohort)
+print(num_resp_hosp)
+```
+
+## Number of Hospitalisations - respiratory emergency admission as main cause
+```{r}
+resp_cohort_strict = hosp_cohort %>% filter(acute_resp_admission == 1) %>%
+  arrange(EAVE_LINKNO, ADMISSION_DATE) %>% filter(!duplicated(EAVE_LINKNO))
+
+print(nrow(resp_cohort_strict))
+```
+
+
+
+## Hospitalisation - broad definition
+```{r}
+#resp_cohort = hosp_cohort %>% filter(acute_resp_admission == 1 | acute_resp_secondary == 1)
+
+z_df = resp_cohort %>% mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit)) %>%
+  mutate(health_board = as.factor(health_board)) %>%
+  mutate(ethnic_gp = as.factor(ethnic_gp)) %>%
+  mutate(death_28 = as.factor(death_28))
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```
+
+## Overall cohort description - respiratory emergency admission as main cause (strict)
+```{r}
+z_df = resp_cohort_strict
+
+
+z_df = z_df %>% mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit))
+
+z_df$death_28 = factor(z_df$death_28)
+
+z_df = z_df %>% set_variable_labels(.labels=var_labels_death, .strict=FALSE)
+kable(summary_factorlist_wt(z_df, "value",descriptors))
+```
+
+## ARI hosps by time period
+```{r}
+z_cut_off_date = as.Date("2022-11-15")
+z_end = as.Date("2023-01-15")
+z_df = resp_cohort %>% mutate(value = if_else(ADMISSION_DATE > z_cut_off_date, 1, 0)) %>%
+  filter(ADMISSION_DATE < z_end) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit)) %>%
+  mutate(health_board = as.factor(health_board)) %>%
+  mutate(ethnic_gp = as.factor(ethnic_gp)) %>%
+  mutate(death_28 = as.factor(death_28))
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```
+
+## Numbers
+```{r}
+print(table(z_df$value))
+```
+
+## Number of deaths - respiratory emergency admission & strict hospitalisation definition
+```{r}
+num_resp_deaths = nrow(resp_cohort %>% filter(death_28 == TRUE))
+print(num_resp_deaths)
+```
+
+## Breakdown of admission diagnoses
+```{r}
+z_urti_count = resp_cohort %>% filter(urti_admit == 1 | urti_admit_secondary == 1) %>% 
+  mutate(urti_admit = if_else(urti_admit == 1 | urti_admit_secondary == 1, 1, 0)) %>%
+  count(urti_admit) %>% mutate(urti_admit = n) %>% select(-n) %>% pivot_longer(urti_admit)
+z_lrti_count = resp_cohort %>% filter(lrti_admit == 1 | lrti_admit_secondary == 1) %>%
+  mutate(lrti_admit = if_else(lrti_admit == 1 | lrti_admit_secondary == 1, 1, 0)) %>%
+  count(lrti_admit) %>% mutate(lrti_admit = n) %>% select(-n) %>% pivot_longer(lrti_admit)
+z_covid_admit_count = resp_cohort %>% filter(covid_admit == 1 | covid_admit_secondary == 1)  %>%
+  mutate(covid_admit = if_else(covid_admit == 1 | covid_admit_secondary == 1, 1, 0)) %>%
+  count(covid_admit) %>% mutate(covid_admit = n) %>% select(-n) %>% pivot_longer(covid_admit)
+z_flu_admit_count = resp_cohort %>% filter(flu_admit == 1 | flu_admit_secondary == 1) %>%
+  mutate(flu_admit = if_else(flu_admit == 1 | flu_admit_secondary == 1, 1, 0)) %>%
+  count(flu_admit) %>% mutate(flu_admit = n) %>% select(-n) %>% pivot_longer(flu_admit)
+z_rsv_admit_count = resp_cohort %>% filter(rsv_admit == 1 | rsv_admit_secondary == 1) %>%
+  mutate(rsv_admit = if_else(rsv_admit == 1 | rsv_admit_secondary == 1, 1, 0)) %>%
+  count(rsv_admit) %>% mutate(rsv_admit = n) %>% select(-n) %>% pivot_longer(rsv_admit)
+z_bronch_admit_count = resp_cohort %>% filter(bronch_admit == 1 | bronch_admit_secondary == 1) %>%
+    mutate(bronch_admit = if_else(bronch_admit == 1 | bronch_admit_secondary == 1, 1, 0)) %>%
+  count(bronch_admit) %>% mutate(bronch_admit = n) %>% select(-n) %>% pivot_longer(bronch_admit)
+
+z_counts = z_urti_count %>% rbind(z_lrti_count) %>% rbind(z_covid_admit_count) %>%
+  rbind(z_flu_admit_count) %>% rbind(z_rsv_admit_count) %>% rbind(z_bronch_admit_count) %>%
+  mutate(s = sum(value)) %>% mutate(perc = value*100/s) %>% select(-s)
+
+# Calculate the overlaps in the admittance reasons
+z_overlap = resp_cohort %>% select(urti_admit, urti_admit_secondary, lrti_admit, lrti_admit_secondary, 
+                       covid_admit, covid_admit_secondary, flu_admit, flu_admit_secondary,
+                       rsv_admit, rsv_admit_secondary, bronch_admit, bronch_admit_secondary) %>%
+  mutate(bronch_admit = if_else(bronch_admit == 1 | bronch_admit_secondary == 1, 1, 0)) %>%
+  mutate(rsv_admit = if_else(rsv_admit == 1 | rsv_admit_secondary == 1, 1, 0)) %>%
+  mutate(flu_admit = if_else(flu_admit == 1 | flu_admit_secondary == 1, 1, 0)) %>%
+  mutate(urti_admit = if_else(urti_admit == 1 | urti_admit_secondary == 1, 1, 0)) %>%
+  mutate(lrti_admit = if_else(lrti_admit == 1 | lrti_admit_secondary == 1, 1, 0)) %>%
+  mutate(num_overlap = rowSums(.)) %>% select(num_overlap) %>% count(num_overlap)
+
+kable(z_counts)
+```
+
+### Overlap of diagnoses
+```{r}
+print(z_overlap)
+```
+
+## Distribution of admission diagnoses - respiratory emergency admission
+```{r}
+z_df = resp_cohort %>% count(MAIN_CONDITION) %>% filter(n > 10) %>% arrange(desc(n))
+
+kable(redact_low_counts(z_df))
+```
+
+## Number of extended hospital stays
+```{r}
+z_df = resp_cohort %>% filter(extended_los == 1)
+
+print(nrow(z_df))
+```
+
+## Demographics of extended hospital stays
+```{r}
+z_df = resp_cohort %>% mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit))
+
+z_df$death_28 = factor(z_df$death_28)
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "extended_los",descriptors))
+```
+
+## Number of Hospitalisations - RSV
+```{r}
+num_rsv_hosp = nrow(resp_cohort %>% filter(rsv_admit == 1))
+print(num_rsv_hosp)
+```
+
+## Overall cohort description - RSV
+```{r}
+z_df = resp_cohort %>% filter(rsv_admit == 1) %>%
+  mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit))
+
+z_df$death_28 = factor(z_df$death_28)
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```
+
+
+## Number of deaths - emergency admission - RSV
+```{r}
+num_rsv_deaths = nrow(resp_cohort %>% filter(rsv_admit == 1) %>% filter(death_28 == TRUE))
+print(num_rsv_deaths)
+```
+
+## Deaths - RSV
+```{r}
+z_df = z_df %>% set_variable_labels(.labels=var_labels_death, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "death_28", descriptors_death))
+```
+
+## Distribution of number of admissions - RSV
+```{r}
+z_df = resp_cohort %>% filter(rsv_admit == 1) %>% count(EAVE_LINKNO) %>% rename(num_admissions = n) %>% count(num_admissions)
+ 
+kable(redact_low_counts(z_df))
+```
+
+## Number of Hospitalisations - Flu/Pneumonia
+```{r}
+num_flu_hosp = nrow(resp_cohort %>% filter(flu_admit == 1))
+print(num_flu_hosp)
+```
+
+
+## Overall cohort description - Flu/Pneumonia
+```{r}
+z_df = resp_cohort %>% filter(flu_admit == 1) %>%
+  mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit))
+
+z_df$death_28 = factor(z_df$death_28)
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```
+
+## Number of deaths - Flu/Pneumonia
+```{r}
+num_flu_deaths = nrow(resp_cohort %>% filter(flu_admit == 1) %>% filter(death_28 == TRUE))
+print(num_flu_deaths)
+```
+
+## Deaths - Flu/Pneumonia
+```{r}
+z_df = z_df %>% set_variable_labels(.labels=var_labels_death, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "death_28", descriptors_death))
+```
+
+## Distribution of number of admissions - Flu/Pneumonia
+```{r}
+z_df = resp_cohort %>% filter(flu_admit == 1) %>% count(EAVE_LINKNO) %>% rename(num_admissions = n) %>% count(num_admissions)
+
+kable(redact_low_counts(z_df))
+```
+
+## Number of Hospitalisations - COVID-19
+```{r}
+num_covid_hosp = nrow(resp_cohort %>% filter(covid_admit == 1))
+print(num_covid_hosp)
+```
+
+## Overall cohort description - COVID-19
+```{r}
+z_df = resp_cohort %>% filter(covid_admit == 1) %>%
+  mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit))
+
+z_df$death_28 = factor(z_df$death_28)
+z_df = z_df %>% set_variable_labels(.labels=var_labels, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "value", descriptors))
+```
+
+## Number of deaths - COVID-19
+```{r}
+num_covid_deaths = nrow(resp_cohort %>% filter(covid_admit == 1) %>% filter(death_28 == TRUE))
+print(num_covid_deaths)
+```
+
+## Deaths - COVID-19
+```{r}
+z_df = z_df %>% set_variable_labels(.labels=var_labels_death, .strict=FALSE)
+
+kable(summary_factorlist_wt(z_df, "death_28", descriptors_death))
+```
+
+## Distribution of number of admissions - COVID-19
+```{r}
+z_df = resp_cohort %>% filter(covid_admit == 1) %>% count(EAVE_LINKNO) %>% rename(num_admissions = n) %>% count(num_admissions)
+
+kable(redact_low_counts(z_df))
+```
+
+## Number of hospital admissions per pathogen
+```{r}
+data = data.frame(name = c("Total Respiratory",
+                           "RSV", "Flu/Pneumonia", "COVID-19"),
+                  values = c(num_resp_hosp, num_rsv_hosp, num_flu_hosp, num_covid_hosp)
+                  )
+
+g = ggplot(data, aes(x=name, y=values)) + geom_bar(stat="identity")
+
+print(g)
+```
+
+## Number of deaths per pathogen
+```{r}
+data = data.frame(name = c("Total Respiratory",
+                           "RSV", "Flu/Pneumonia", "COVID-19"),
+                  values = c(num_resp_deaths, num_rsv_deaths, num_flu_deaths, num_covid_deaths)
+                  )
+
+g = ggplot(data, aes(x=name, y=values)) + geom_bar(stat="identity")
+
+print(g)
+```
+
+# Hospital Length of stays
+## All respiratory pathogens
+```{r}
+g = ggplot(resp_cohort, aes(hosp_los_gp)) + geom_bar()
+
+print(g)
+```
+
+## Flu/Pneumonia admissions
+```{r}
+z_cohort = resp_cohort %>% filter(flu_admit == 1)
+g = ggplot(z_cohort, aes(hosp_los_gp)) + geom_bar()
+
+print(g)
+```
+
+## COVID admissions
+```{r}
+z_cohort = resp_cohort %>% filter(covid_admit == 1)
+g = ggplot(z_cohort, aes(hosp_los_gp)) + geom_bar()
+
+print(g)
+```
+
+## RSV admissions
+```{r}
+z_cohort = resp_cohort %>% filter(rsv_admit == 1)
+g = ggplot(z_cohort, aes(hosp_los_gp)) + geom_bar()
+
+print(g)
+```
+# Weekly counts
+
+## All respiratory admissions
+```{r}
+z_count = resp_cohort %>% 
+  select(EAVE_LINKNO, ADMISSION_DATE) %>% mutate(t = floor(difftime(ADMISSION_DATE, a_begin, units="days"))) %>%
+  count(t) %>% mutate(t = t + a_begin) 
+g = ggplot() + geom_line(z_count, mapping=aes(x=t, y=n)) + 
+  scale_x_date(breaks="1 month", date_labels="%b %Y") + ylab("Number of admissions") +
+  xlab("Month and Year") 
+
+print(g)
+```
+
+## Flu/Pneumonia admissions
+```{r}
+z_count = resp_cohort %>% filter(flu_admit == 1) %>% 
+  select(EAVE_LINKNO, ADMISSION_DATE) %>% mutate(t = floor(difftime(ADMISSION_DATE, a_begin, units="days"))) %>%
+  count(t) %>% mutate(t = t + a_begin)
+g = ggplot() + geom_line(z_count, mapping=aes(x=t, y=n)) + 
+  scale_x_date(breaks="1 month", date_labels="%b %Y") + ylab("Number of admissions") +
+  xlab("Month and Year") 
+print(g)
+```
+
+## COVID-19 admissions
+```{r}
+z_count = resp_cohort %>% filter(covid_admit == 1) %>% 
+  select(EAVE_LINKNO, ADMISSION_DATE) %>% mutate(t = floor(difftime(ADMISSION_DATE, a_begin, units="days"))) %>%
+  count(t) %>% mutate(t = t + a_begin)
+
+g = ggplot() + geom_line(z_count, mapping=aes(x=t, y=n)) + 
+  scale_x_date(breaks="1 month", date_labels="%b %Y") + ylab("Number of admissions") +
+  xlab("Month and Year") 
+print(g)
+```
+
+
+## RSV admissions
+```{r}
+z_count = resp_cohort %>% filter(rsv_admit == 1) %>% 
+  select(EAVE_LINKNO, ADMISSION_DATE) %>% mutate(t = floor(difftime(ADMISSION_DATE, a_begin, units="days"))) %>%
+  count(t) %>% mutate(t = t + a_begin)
+
+g = ggplot() + geom_line(z_count, mapping=aes(x=t, y=n)) + 
+  scale_x_date(breaks="1 month", date_labels="%b %Y") + ylab("Number of admissions") +
+  xlab("Month and Year") 
+print(g)
+```
+
+# Long Hospital Stays
+```{r}
+z_df = resp_cohort %>%
+    mutate(value = TRUE) %>%
+  mutate(MAIN_CONDITION = factor(MAIN_CONDITION)) %>%
+  mutate(simd2020_sc_quintile = factor(simd2020_sc_quintile)) %>%
+  mutate(icu_admit = as.factor(icu_admit))
+
+z_df$death_28 = factor(z_df$death_28)
+
+kable(summary_factorlist_wt(z_df, "extended_los", descriptors))
+```
